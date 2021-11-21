@@ -1,54 +1,45 @@
 import axios from 'axios'
 import cheerio from 'cheerio'
-import { readFile } from "fs/promises"
+import { readFile, writeFile } from "fs/promises"
+import { GoalieSeason, Results, Season, SkaterSeason } from "./common"
 
-interface Season {
-    season: string
-    team: string
-    league: string
-    gamesPlayed: number
-}
-interface SkaterSeason extends Season {
-    goals: number
-    assists: number
-    points: number
-    plusMinus: number
-}
+function parseSeason($cells: cheerio.Cheerio): Season {
+    const season = $cells.eq(0).text().trim()
+    const injured = $cells.eq(0).find("i.fa-injured").length > 0
+    const team = $cells.eq(1).find("a").text().trim()
+    const league = $cells.eq(2).text().trim()
+    const gamesPlayed = parseInt($cells.eq(3).text().trim(), 10)
 
-interface GoalieSeason extends Season {
-    savePct: string
-    goalsAvg: string
+    return {
+        season, injured, team, league, gamesPlayed
+    }
 }
 
-interface Player<S extends Season> {
-    id: number
-    name: string
-    dateOfBirth: string
-    position: string
-    height: string
-    weight: string
-    shoots: string
-    seasons: S[]
-}
+function parseGoalieSeason($item: cheerio.Cheerio): GoalieSeason {
+    const $cells = $item.find('td')
 
-interface Results {
-    skaters: Player<SkaterSeason>[]
-    goalies: Player<GoalieSeason>[]
+    const goalsAvg = $cells.eq(5).text().trim()
+    const savePct = $cells.eq(6).text().trim()
+    const shutout = parseInt($cells.eq(9).text().trim(), 10) || 0
+    const record = $cells.eq(10).text().trim()
+
+    return {
+        ...parseSeason($cells),
+        goalsAvg, savePct, shutout, record
+    }
 }
 
 function parseSkaterSeason($item: cheerio.Cheerio): SkaterSeason {
     const $cells = $item.find('td')
-    const season = $cells.eq(0).text().trim()
-    const team = $cells.eq(1).find("a").text().trim()
-    const league = $cells.eq(2).text().trim()
-    const gamesPlayed = parseInt($cells.eq(3).text().trim(), 10)
+
     const goals = parseInt($cells.eq(4).text().trim(), 10)
     const assists = parseInt($cells.eq(5).text().trim(), 10)
     const points = parseInt($cells.eq(6).text().trim(), 10)
     const plusMinus = parseInt($cells.eq(8).text().trim(), 10)
 
     return {
-        season, team, league, gamesPlayed, goals, assists, points, plusMinus,
+        ...parseSeason($cells),
+        goals, assists, points, plusMinus,
     }
 }
 
@@ -57,10 +48,12 @@ function parseCardItem($item: cheerio.Cheerio) {
 }
 
 async function parsePage(url: string, results: Results) {
+    console.log(`Getting page ${url}...`)
     const resp = await axios.get(url)
     const $ = cheerio.load(resp.data)
 
     const name = $("h1.ep-entity-header__name").text().trim()
+    console.log(`Player ${name}`)
 
     const $card = $('div.ep-card__body div.ep-list > div')
     const dateOfBirth = parseCardItem($card.eq(0))
@@ -87,6 +80,12 @@ async function parsePage(url: string, results: Results) {
             ...player,
             seasons,
         })
+    } else {
+        const seasons = $seasons.toArray().map(($item) => parseGoalieSeason($($item)))
+        results.goalies.push({
+            ...player,
+            seasons,
+        })
     }
 }
 
@@ -101,10 +100,9 @@ async function main() {
 
     for (const link of links) {
         await parsePage(link, results)
-        break
     }
 
-    console.log(results)
+    await writeFile("output.json", JSON.stringify(results, null, 2));
 }
 
 main()

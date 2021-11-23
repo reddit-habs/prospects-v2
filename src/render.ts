@@ -18,8 +18,8 @@ async function main() {
     results.skaters.sort((a, b) => a.name.localeCompare(b.name))
     results.goalies.sort((a, b) => a.name.localeCompare(b.name))
 
-    const skatersTable = new Table("Player", "Position", "Team", "League", "GP", "Goals", "Assists", "Points", "+/-", "PPG")
-    const goaliesTable = new Table("Player", "Position", "Team", "League", "GP", "GAA", "SV%", "SO", "Record")
+    const skatersTable = new Table("Player", "Age", "Position", "Team", "League", "GP", "Goals", "Assists", "Points", "+/-", "PPG")
+    const goaliesTable = new Table("Player", "Age", "Position", "Team", "League", "GP", "GAA", "SV%", "SO", "Record")
 
     for (const skater of results.skaters) {
         const seasons = skater.seasons.filter(seasonFilter)
@@ -27,6 +27,7 @@ async function main() {
             const ppg = season.points / season.gamesPlayed
             skatersTable.addRow(
                 skater.name,
+                skater.age,
                 skater.position,
                 season.team,
                 season.league,
@@ -45,6 +46,7 @@ async function main() {
         for (const season of seasons) {
             goaliesTable.addRow(
                 goalie.name,
+                goalie.age,
                 goalie.position,
                 season.team,
                 season.league,

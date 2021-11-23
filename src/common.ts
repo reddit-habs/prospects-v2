@@ -24,6 +24,7 @@ export interface Player<S extends Season> {
     id: number
     name: string
     dateOfBirth: string
+    age: string
     position: string
     height: string
     weight: string

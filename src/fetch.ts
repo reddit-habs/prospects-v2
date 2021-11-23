@@ -1,5 +1,6 @@
 import axios from 'axios'
 import cheerio from 'cheerio'
+import moment from 'moment'
 import { readFile, writeFile } from "fs/promises"
 import { GoalieSeason, Results, Season, SkaterSeason } from "./common"
 
@@ -43,6 +44,12 @@ function parseSkaterSeason($item: cheerio.Cheerio): SkaterSeason {
     }
 }
 
+function getAge(dateOfBirth: string): string {
+    const dob = moment(dateOfBirth, 'MMM DD, YYYY')
+    const months = moment().diff(dob, 'months')
+    return (months / 12.0).toFixed(1)
+}
+
 function parseCardItem($item: cheerio.Cheerio) {
     return $item.find('div').eq(1).text().trim()
 }
@@ -57,6 +64,7 @@ async function parsePage(url: string, results: Results) {
 
     const $card = $('div.ep-card__body div.ep-list > div')
     const dateOfBirth = parseCardItem($card.eq(0))
+    const age = getAge(dateOfBirth)
     const position = parseCardItem($card.eq(1))
     const height = parseCardItem($card.eq(3))
     const weight = parseCardItem($card.eq(5))
@@ -66,6 +74,7 @@ async function parsePage(url: string, results: Results) {
         id: -1,
         name,
         dateOfBirth,
+        age,
         position,
         height,
         weight,
@@ -102,7 +111,7 @@ async function main() {
         await parsePage(link, results)
     }
 
-    await writeFile("output.json", JSON.stringify(results, null, 2));
+    await writeFile("output.json", JSON.stringify(results, null, 2))
 }
 
 main()
